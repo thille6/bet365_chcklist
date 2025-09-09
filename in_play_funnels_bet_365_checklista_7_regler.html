@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>In-Play Funnels – Bet365 Checklista (7 regler)</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      background: #ffffff;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #004aad;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    header h1 { margin: 0; font-size: 24px; }
+    header p { margin: 5px 0 0; font-size: 14px; }
+    main { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+    .funnel {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      background: #f9f9f9;
+    }
+    .funnel h2 { margin-top: 0; color: #004aad; font-size: 20px; cursor:pointer; }
+    .info { margin: 8px 0; }
+    .checklist { margin-top: 10px; padding-left: 0; }
+    .checklist li {
+      margin-bottom: 10px;
+      list-style:none;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .checklist input[type=checkbox] {
+      margin-right:12px;
+      width:22px;
+      height:22px;
+      accent-color:#004aad;
+    }
+    .checklist label { flex: 1; cursor:pointer; }
+    .checklist li.checked {
+      background: #e6ffed;
+      border-color: #22c55e;
+    }
+    .trigger { background: #eaf4ff; border-left: 4px solid #004aad; padding: 8px; margin-top: 10px; font-size: 15px; }
+    .hidden { display:none; }
+    footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+    .controls {text-align:center; margin:20px 0; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+    .btn {background:#004aad;color:#fff;padding:10px 16px;border:none;border-radius:6px;cursor:pointer;font-size:15px;}
+    .btn:active{background:#00337a;}
+    @media (max-width:600px){
+      .funnel h2 {font-size:18px;}
+      .checklist li {font-size:15px; padding:10px;}
+      .btn {flex:1;}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>In‑Play Funnels – Bet365 Checklista</h1>
+    <p>7 enkla regler för live‑spel. Klicka för att expandera varje funnel och bocka av checklistan live.</p>
+  </header>
+  <main>
+    <div class="controls">
+      <button class="btn" onclick="toggleAll()">Visa/Dölj alla</button>
+      <button class="btn" onclick="resetChecks()">Återställ checklistor</button>
+    </div>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">1. Late Goal Pressure (70–90 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: 0–0, 1–0, 0–1, 1–1</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Skott totalt ≥ 15</label></li>
+          <li><label><input type="checkbox"> Skott på mål ≥ 5</label></li>
+          <li><label><input type="checkbox"> Farliga anfall ≥ 80</label></li>
+        </ul>
+        <div class="trigger">Trigger: Over 0.5 mål, odds ≥ 1.70</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">2. Early Storm (10–30 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: Valfri</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Skott totalt ≥ 8</label></li>
+          <li><label><input type="checkbox"> Skott på mål ≥ 3</label></li>
+          <li><label><input type="checkbox"> Hörnor ≥ 3</label></li>
+        </ul>
+        <div class="trigger">Trigger: Over 0.5 First Half, odds ≥ 1.80</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">3. BTTS Momentum (25–65 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: 1–0 eller 0–1</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Båda lagen: skott på mål ≥ 2</label></li>
+          <li><label><input type="checkbox"> Skott totalt ≥ 10</label></li>
+          <li><label><input type="checkbox"> Bollinnehav 40–60%</label></li>
+        </ul>
+        <div class="trigger">Trigger: BTTS Yes, odds ≥ 2.00</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">4. Red Card Swing (Event‑driven)</h2>
+      <div class="content hidden">
+        <div class="info">Ledande lag får rött kort</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Underdog skott ≥ 5</label></li>
+          <li><label><input type="checkbox"> Underdog hörnor ≥ 2</label></li>
+        </ul>
+        <div class="trigger">Trigger: Next Goal Underdog ≥ 2.20 eller Over 2.5 ≥ 1.90</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">5. Corner Storm (55–75 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: Valfri</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Hörnor totalt ≥ 8</label></li>
+          <li><label><input type="checkbox"> Ett lag ≥ 5 hörnor</label></li>
+          <li><label><input type="checkbox"> Farliga anfall ≥ 50</label></li>
+        </ul>
+        <div class="trigger">Trigger: Next Goal laget med flest hörnor ≥ 2.30</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">6. High Tempo Draw Breaker (60–80 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: Oavgjort</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Skott totalt ≥ 12</label></li>
+          <li><label><input type="checkbox"> Skott på mål ≥ 4</label></li>
+          <li><label><input type="checkbox"> Farliga anfall ≥ 70</label></li>
+        </ul>
+        <div class="trigger">Trigger: No Draw ≥ 2.00</div>
+      </div>
+    </section>
+
+    <section class="funnel">
+      <h2 onclick="toggle(this)">7. Cards & Chaos (30–60 min)</h2>
+      <div class="content hidden">
+        <div class="info">Ställning: Valfri</div>
+        <ul class="checklist">
+          <li><label><input type="checkbox"> Gula kort ≥ 3</label></li>
+          <li><label><input type="checkbox"> Fouls ≥ 12</label></li>
+        </ul>
+        <div class="trigger">Trigger: Over 4.5 cards ≥ 1.70</div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    © In‑Play Funnels Guide – Anpassad för Bet365 statistik
+  </footer>
+
+  <script>
+    function toggle(el){
+      const content = el.nextElementSibling;
+      content.classList.toggle('hidden');
+    }
+    function toggleAll(){
+      document.querySelectorAll('.funnel .content').forEach(c => c.classList.toggle('hidden'));
+    }
+    function resetChecks(){
+      document.querySelectorAll('.checklist input[type=checkbox]').forEach(cb => {
+        cb.checked=false;
+        cb.closest('li').classList.remove('checked');
+      });
+    }
+    document.addEventListener('change', function(e){
+      if(e.target.matches('.checklist input[type=checkbox]')){
+        const li = e.target.closest('li');
+        if(e.target.checked){
+          li.classList.add('checked');
+        } else {
+          li.classList.remove('checked');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
