@@ -104,7 +104,21 @@ function makeBar(pVal, mcVal){
 }
 
 function calcRateStats(shots, sot, corners, da, minute){
-  return ((shots*0.002) + (sot*0.006) + (corners*0.004) + (da*0.003)) / minute;
+  // Adaptiv viktning baserat på skott-precision
+  let shotPrecision = shots > 0 ? sot / shots : 0.5; // Default 50% om inga skott
+  let precisionMultiplier = 0.5 + shotPrecision; // 0.5-1.5x multiplier
+  
+  // Dynamiska relationer - offensivt tryck
+  let offensivePressure = corners + da;
+  let pressureMultiplier = Math.min(1.4, 1 + (offensivePressure / 15)); // Max 1.4x
+  
+  // Evidensbaserade vikter med adaptiv justering
+  let shotWeight = 0.0025 * precisionMultiplier;
+  let sotWeight = 0.005 * (2 - precisionMultiplier); // Omvänd relation för SoT
+  let cornerWeight = 0.003 * pressureMultiplier;
+  let daWeight = 0.0025 * pressureMultiplier;
+  
+  return ((shots * shotWeight) + (sot * sotWeight) + (corners * cornerWeight) + (da * daWeight)) / minute;
 }
 function calcRateXG(xg, minute){ return xg / minute; }
 
@@ -116,6 +130,45 @@ function updateAlphaLabel(){
 function setPreset(val){
   document.getElementById("alpha").value=val;
   updateAlphaLabel();
+}
+
+function calculateDataQuality(shotsH, sotH, cornersH, daH, xgH, shotsA, sotA, cornersA, daA, xgA, minute) {
+  // Beräkna datakvalitet och konfidensintervall
+  let quality = {
+    completeness: 0,
+    balance: 0,
+    realism: 0,
+    confidence: 0
+  };
+  
+  // Kompletthetsanalys (0-1)
+  let totalStats = shotsH + sotH + cornersH + daH + shotsA + sotA + cornersA + daA;
+  let expectedMinStats = minute * 0.5; // Förväntat minimum baserat på tid
+  quality.completeness = Math.min(1, totalStats / expectedMinStats);
+  
+  // Balansanalys - hur jämn är statistiken mellan lagen?
+  let homeTotal = shotsH + sotH + cornersH + daH;
+  let awayTotal = shotsA + sotA + cornersA + daA;
+  let totalCombined = homeTotal + awayTotal;
+  if(totalCombined > 0) {
+    let imbalance = Math.abs(homeTotal - awayTotal) / totalCombined;
+    quality.balance = Math.max(0, 1 - imbalance * 2); // Penalisera stor obalans
+  }
+  
+  // Realismanalys - är värdena rimliga?
+  let realism = 1;
+  // Kontrollera skott-precision
+  if(shotsH > 0 && sotH / shotsH > 0.8) realism *= 0.8; // Orealistiskt hög precision
+  if(shotsA > 0 && sotA / shotsA > 0.8) realism *= 0.8;
+  // Kontrollera xG vs skott-relation
+  if(shotsH > 0 && xgH / shotsH > 0.3) realism *= 0.9; // Mycket högt xG per skott
+  if(shotsA > 0 && xgA / shotsA > 0.3) realism *= 0.9;
+  quality.realism = realism;
+  
+  // Övergripande konfidensintervall
+  quality.confidence = (quality.completeness * 0.4 + quality.balance * 0.3 + quality.realism * 0.3);
+  
+  return quality;
 }
 
 function runCalc(){
@@ -144,19 +197,57 @@ function runCalc(){
     rA=alphaVal*rA_stats+(1-alphaVal)*rA_xg;
   }
 
+  // Situationell kontext-viktning med graderad effekt
   if(minute>=70){
     const leadH=sh-sa;
-    if(leadH>0) rH*=0.85;
-    if(leadH<0) rH*=1.25;
     const leadA=sa-sh;
-    if(leadA>0) rA*=0.85;
-    if(leadA<0) rA*=1.25;
+    const gamePhase = Math.min(1, (minute - 70) / 20); // 0-1 baserat på hur sent det är
+    
+    // Graderad ledningseffekt baserat på målskillnad och tid
+    if(leadH>0) {
+      let leadEffect = Math.min(0.25, leadH * 0.08) * gamePhase; // Max 25% reduktion
+      rH *= (1 - leadEffect);
+    }
+    if(leadH<0) {
+      let chaseEffect = Math.min(0.3, Math.abs(leadH) * 0.1) * gamePhase; // Max 30% ökning
+      rH *= (1 + chaseEffect);
+    }
+    if(leadA>0) {
+      let leadEffect = Math.min(0.25, leadA * 0.08) * gamePhase;
+      rA *= (1 - leadEffect);
+    }
+    if(leadA<0) {
+      let chaseEffect = Math.min(0.3, Math.abs(leadA) * 0.1) * gamePhase;
+      rA *= (1 + chaseEffect);
+    }
   }
-  if(redA>redH){ rH*=1.3; rA*=0.8; }
-  if(redH>redA){ rA*=1.3; rH*=0.8; }
-  if(R<=12){ rH*=1.1; rA*=1.1; }
+  // Förbättrade rött kort-effekter med graderad påverkan
+  const redDiff = (redA - redH);
+  if(redDiff !== 0) {
+    const redEffect = Math.min(0.4, Math.abs(redDiff) * 0.15); // Max 40% effekt
+    if(redDiff > 0) { // Hemma har fördel
+      rH *= (1 + redEffect);
+      rA *= (1 - redEffect * 0.7); // Mindre negativ effekt
+    } else { // Borta har fördel
+      rA *= (1 + redEffect);
+      rH *= (1 - redEffect * 0.7);
+    }
+  }
+  
+  // Slutminuternas intensitet med graderad effekt
+  if(R <= 12) {
+    let intensityBoost = 0.03 + (12 - R) * 0.005; // 3-8% beroende på tid kvar
+    rH *= (1 + intensityBoost);
+    rA *= (1 + intensityBoost);
+  }
 
-  const lamH=rH*R, lamA=rA*R;
+  // Beräkna datakvalitet
+  const dataQuality = calculateDataQuality(shotsH, sotH, cornersH, daH, xgH, shotsA, sotA, cornersA, daA, xgA, minute);
+  
+  // Justera lambda-värden baserat på konfidensintervall
+  const confidenceAdjustment = 0.8 + (dataQuality.confidence * 0.4); // 0.8-1.2x justering
+  const lamH = rH * R * confidenceAdjustment;
+  const lamA = rA * R * confidenceAdjustment;
 
   const MAX=8; let noGoal=0,over05=0,over15=0,nextH=0,nextA=0,H=0,X=0,A=0;
   for(let i=0;i<=MAX;i++){for(let j=0;j<=MAX;j++){
@@ -202,11 +293,32 @@ Monte Carlo (${sims} simuleringar):
 - 1X2: H ${pct(mc_H)}, X ${pct(mc_X)}, B ${pct(mc_A)}
 `;
 
+  // Skapa kvalitetsindikator
+  function getQualityIcon(score) {
+    if(score >= 0.8) return "🟢";
+    if(score >= 0.6) return "🟡";
+    return "🔴";
+  }
+  
+  function getConfidenceText(confidence) {
+    if(confidence >= 0.8) return "Hög tillförlitlighet";
+    if(confidence >= 0.6) return "Medel tillförlitlighet";
+    return "Låg tillförlitlighet - var försiktig";
+  }
+  
   const out=document.getElementById("out");
   out.style.display="block";
   out.innerHTML=`
+    <div style="background: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+      <b>📊 Datakvalitetsanalys</b><br>
+      Komplethet: ${getQualityIcon(dataQuality.completeness)} ${(dataQuality.completeness*100).toFixed(0)}% • 
+      Balans: ${getQualityIcon(dataQuality.balance)} ${(dataQuality.balance*100).toFixed(0)}% • 
+      Realism: ${getQualityIcon(dataQuality.realism)} ${(dataQuality.realism*100).toFixed(0)}%<br>
+      <b>Konfidensintervall: ${getQualityIcon(dataQuality.confidence)} ${(dataQuality.confidence*100).toFixed(0)}% - ${getConfidenceText(dataQuality.confidence)}</b>
+    </div>
+    
     <b>Förväntade mål kvar</b><br>
-    Hemma: ${lamH.toFixed(2)} • Borta: ${lamA.toFixed(2)}<br><br>
+    Hemma: ${lamH.toFixed(2)} • Borta: ${lamA.toFixed(2)} <small>(justerat för datakvalitet)</small><br><br>
     <p><i>🔵 Poisson = teoretisk modell (matematiskt).  
     🟢 Monte Carlo = simulerad modell (slump med ${sims} körningar).  
     Skillnader visar om modellen är stabil eller osäker.</i></p>
