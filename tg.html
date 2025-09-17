@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bet365 Live xT & Momentum-kalkylator – Expected Threat + Monte Carlo</title>
+  <style>
+    :root {
+      --blue:#004aad;
+      --green:#22c55e;
+      --amber:#f59e0b;
+      --bg:#f9f9f9;
+      --card:#ffffff;
+      --muted:#eef6ff;
+      --border:#e5e7eb;
+      --ink:#1a1a1a;
+    }
+    body {font-family: Arial, sans-serif; background:var(--bg); color:var(--ink); margin:0; padding:20px;}
+    h1 {color:var(--blue);}
+    .grid2 {display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .grid3 {display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .box {background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:20px;}
+    h3 {margin:8px 0 6px; color:var(--blue)}
+    label {display:block; margin-top:8px; font-size:14px;}
+    input[type=number] {width:100%; padding:6px; margin-top:3px; border:1px solid #ccc; border-radius:6px; font-size:14px;}
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      margin: 5px;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    .btn.secondary{background:#e5e7eb; color:#111}
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 20px 0;
+      gap: 10px;
+    }
+    .saved-list {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .saved-item {
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 8px 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .saved-item:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .saved-item-header {
+      font-weight: bold;
+      color: #1e293b;
+      margin-bottom: 5px;
+    }
+    .saved-item-details {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .result {margin-top:15px; padding:15px; background:var(--muted); border-left:4px solid var(--blue); display:none; border-radius:8px;}
+    .bar-container {background:#eee; border-radius:6px; height:22px; width:100%; margin:6px 0; position:relative; overflow:hidden}
+    .bar {height:100%;}
+    .bar.poisson {background:var(--blue);}
+    .bar.mc {background:var(--green); position:absolute; top:0; left:0; opacity:0.75;}
+    table {width:100%; border-collapse:collapse; margin-top:6px; font-size:14px;}
+    th, td {text-align:left; padding:6px 4px; border-bottom:1px solid var(--border);}
+    th {color:#333}
+    .mono{font-variant-numeric: tabular-nums}
+    .pill{background:#fff; border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-size:13px;}
+    .kpi {display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 12px}
+    @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div style="text-align: center; margin-bottom: 20px;">
+    <a href="index.html" style="display: inline-block; background: #6b7280; color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; margin-bottom: 15px;">← Tillbaka till huvudsidan</a>
+  </div>
+  
+  <h1>⚽ Bet365 Live xT & Momentum-kalkylator</h1>
+  <p>Avancerad live-kalkylator som använder <b>xT (Förväntad Fara)</b> och <b>momentum-modeller</b> baserat på Bet365-statistik. Beräknar rättvisa odds med Monte Carlo-simulering och markerar <b>VÄRDE</b> när marknadsodds överstiger modellens odds.</p>
+
+  <div class="grid2">
+    <!-- INPUTS -->
+    <div class="box">
+      <h3>Match & statistik</h3>
+      <div class="grid3">
+        <label>Minut<input id="minute" type="number" value="78"></label>
+        <label>Tillägg<input id="stopp" type="number" value="5"></label>
+        <label>MC-simuleringar<input id="sims" type="number" value="10000"></label>
+      </div>
+      <div class="grid3">
+        <label>Hemmalag mål<input id="sh" type="number" value="1"></label>
+        <label>Bortalag mål<input id="sa" type="number" value="1"></label>
+        <label>Gula kort<input id="yc" type="number" value="3"></label>
+      </div>
+      <div class="grid3">
+        <label>Röda Hemma<input id="red_h" type="number" value="0"></label>
+        <label>Röda Borta<input id="red_a" type="number" value="0"></label>
+      </div>
+
+      <h3>Bet365 totalsiffror</h3>
+      <div class="grid3">
+        <label>Skott H<input id="shots_h" type="number" value="12"></label>
+        <label>Skott på mål H<input id="sot_h" type="number" value="5"></label>
+        <label>Hörn H<input id="corners_h" type="number" value="6"></label>
+      </div>
+      <label>Bollinnehav H<input id="da_h" type="number" value="65"></label>
+
+      <div class="grid3">
+        <label>Skott B<input id="shots_a" type="number" value="9"></label>
+        <label>Skott på mål B<input id="sot_a" type="number" value="3"></label>
+        <label>Hörn B<input id="corners_a" type="number" value="4"></label>
+      </div>
+      <label>Bollinnehav B<input id="da_a" type="number" value="55"></label>
+
+      <h3>Marknadsodds (från Bet365)</h3>
+      <div class="grid3">
+        <label>Över 0.5<input id="mkt_over05" type="number" step="0.01" value="1.70"></label>
+        <label>Över 1.5<input id="mkt_over15" type="number" step="0.01" value="2.30"></label>
+        <span></span>
+      </div>
+      <div class="grid3">
+        <label>Hemma<input id="mkt_home" type="number" step="0.01" value="2.20"></label>
+        <label>Oavgjort<input id="mkt_draw" type="number" step="0.01" value="3.40"></label>
+        <label>Borta<input id="mkt_away" type="number" step="0.01" value="3.10"></label>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="runCalc()">Beräkna</button>
+        <button class="btn" onclick="saveCalculation()" style="background:#22c55e;">💾 Spara</button>
+        <button class="btn" onclick="loadCalculation()" style="background:#3b82f6;">📂 Ladda</button>
+        <button class="btn" onclick="showSavedList()" style="background:#8b5cf6;">📋 Lista</button>
+      </div>
+    </div>
+
+    <!-- RESULTAT -->
+    <div class="box">
+      <h3>Resultat & Value-check</h3>
+      <div id="out" class="result"></div>
+    
+    <div id="savedList" class="saved-list" style="display:none;">
+      <h4>💾 Sparade beräkningar</h4>
+      <div id="savedItems"></div>
+    </div>
+  </div>
+  </div>
+
+<script>
+// xT (Expected Threat) och Momentum-baserad Live Kalkylator
+function factorial(n){let r=1;for(let i=2;i<=n;i++)r*=i;return r;}
+function pois(k,lam){return Math.exp(-lam)*Math.pow(lam,k)/(k?factorial(k):1);}
+function pct(x){return (100*x).toFixed(1)+"%";}
+function fair(p){return p>0?(1/p).toFixed(2):"∞";}
+
+// xT-modell: Beräknar Expected Threat baserat på skottstatistik och positioner
+function calculatexT(shots, sot, corners, possession, goals, minute) {
+  // Grundläggande xT-värden baserat på skottstatistik
+  const shotAccuracy = shots > 0 ? sot / shots : 0;
+  const conversionRate = sot > 0 ? goals / sot : 0;
+  
+  // xT-komponenter
+  const shotThreat = shots * 0.08; // Grundvärde per skott
+  const accuracyBonus = shotAccuracy * 0.15; // Bonus för träffsäkerhet
+  const conversionBonus = conversionRate * 0.25; // Bonus för måleffektivitet
+  const cornerThreat = corners * 0.12; // Hörnthreat
+  const possessionThreat = (possession / 100) * 0.1; // Bollinnehavsthreat
+  
+  return shotThreat + accuracyBonus + conversionBonus + cornerThreat + possessionThreat;
+}
+
+// Momentum-modell: Väger senaste händelser tyngre
+function calculateMomentum(currentGoals, xT, minute, redCards, yellowCards) {
+  // Tidsbaserad viktning - senare i matchen = högre vikt
+  const timeWeight = Math.min(1.5, 0.5 + (minute / 90));
+  
+  // Målmomentum - senaste mål påverkar framtida sannolikhet
+  const goalMomentum = currentGoals > 0 ? Math.log(currentGoals + 1) * 0.3 : 0;
+  
+  // Kort-påverkan på momentum
+  const cardPenalty = (redCards * 0.4) + (yellowCards * 0.05);
+  
+  // Kombinerat momentum
+  const momentum = (xT * timeWeight + goalMomentum) * (1 - cardPenalty);
+  
+  return Math.max(0, momentum);
+}
+
+// Avancerad målfrekvens baserad på xT och momentum
+function calculateAdvancedRate(homeStats, awayStats, minute) {
+  const { shots: shotsH, sot: sotH, corners: cornersH, possession: daH, goals: sh, red: redH, yellow: ycH } = homeStats;
+  const { shots: shotsA, sot: sotA, corners: cornersA, possession: daA, goals: sa, red: redA, yellow: ycA } = awayStats;
+  
+  // Beräkna xT för båda lagen
+  const xTHome = calculatexT(shotsH, sotH, cornersH, daH, sh, minute);
+  const xTAway = calculatexT(shotsA, sotA, cornersA, daA, sa, minute);
+  
+  // Beräkna momentum för båda lagen
+  const momentumHome = calculateMomentum(sh, xTHome, minute, redH, ycH);
+  const momentumAway = calculateMomentum(sa, xTAway, minute, redA, ycA);
+  
+  // Normalisera och konvertera till målfrekvens per minut
+  const totalThreat = momentumHome + momentumAway;
+  const baseRate = Math.max(0.01, totalThreat * 0.15); // Grundfrekvens
+  
+  // Justera för matchsituation
+  const situationalMultiplier = minute > 75 ? 1.2 : minute < 30 ? 0.8 : 1.0;
+  
+  return {
+    homeRate: (momentumHome / (momentumHome + momentumAway + 0.01)) * baseRate * situationalMultiplier,
+    awayRate: (momentumAway / (momentumHome + momentumAway + 0.01)) * baseRate * situationalMultiplier,
+    totalRate: baseRate * situationalMultiplier,
+    xTHome,
+    xTAway,
+    momentumHome,
+    momentumAway
+  };
+}
+
+function runCalc(){
+  const gv=id=>parseFloat(document.getElementById(id).value||0);
+  const minute=gv("minute"), stopp=gv("stopp"), sims=gv("sims");
+  const sh=gv("sh"), sa=gv("sa"), yc=gv("yc"), redH=gv("red_h"), redA=gv("red_a");
+  const shotsH=gv("shots_h"), sotH=gv("sot_h"), cornersH=gv("corners_h"), daH=gv("da_h");
+  const shotsA=gv("shots_a"), sotA=gv("sot_a"), cornersA=gv("corners_a"), daA=gv("da_a");
+
+  // Marknadsodds
+  const mkt_over05=gv("mkt_over05"), mkt_over15=gv("mkt_over15");
+  const mkt_home=gv("mkt_home"), mkt_draw=gv("mkt_draw"), mkt_away=gv("mkt_away");
+
+  const R = Math.max(0,(90+stopp)-minute);
+  
+  // Förbered data för avancerad modell
+  const homeStats = {
+    shots: shotsH, sot: sotH, corners: cornersH, possession: daH,
+    goals: sh, red: redH, yellow: yc * 0.6 // Anta 60% av gula kort är hemmalag
+  };
+  const awayStats = {
+    shots: shotsA, sot: sotA, corners: cornersA, possession: daA,
+    goals: sa, red: redA, yellow: yc * 0.4 // Anta 40% av gula kort är bortalag
+  };
+  
+  // Beräkna avancerade rates med xT och momentum
+  const rates = calculateAdvancedRate(homeStats, awayStats, minute);
+
+  // Använd den nya xT och momentum-baserade modellen
+  const lamH = rates.homeRate * R;
+  const lamA = rates.awayRate * R;
+
+  // Poisson-beräkningar
+  let noGoal=0, over05=0, over15=0, H=0, X=0, A=0;
+  const MAX = 15; // Öka för bättre precision
+  
+  for(let i=0; i<=MAX; i++){
+    for(let j=0; j<=MAX; j++){
+      const p = pois(i, lamH) * pois(j, lamA);
+      if(i===0 && j===0) noGoal += p;
+      if(i+j >= 1) over05 += p;
+      if(i+j >= 2) over15 += p;
+      
+      const fh = sh + i;
+      const fa = sa + j;
+      if(fh > fa) H += p;
+      else if(fh === fa) X += p;
+      else A += p;
+    }
+  }
+
+  // Monte Carlo-simulering
+  function runMonteCarlo(lamH, lamA, sims, currentH, currentA) {
+    let mc_noGoal=0, mc_over05=0, mc_over15=0, mc_H=0, mc_X=0, mc_A=0;
+    
+    for(let sim=0; sim<sims; sim++) {
+      // Generera Poisson-fördelade mål för återstående tid
+      const goalsH = poissonRandom(lamH);
+      const goalsA = poissonRandom(lamA);
+      
+      const finalH = currentH + goalsH;
+      const finalA = currentA + goalsA;
+      const totalGoals = goalsH + goalsA;
+      
+      if(totalGoals === 0) mc_noGoal++;
+      if(totalGoals >= 1) mc_over05++;
+      if(totalGoals >= 2) mc_over15++;
+      
+      if(finalH > finalA) mc_H++;
+      else if(finalH === finalA) mc_X++;
+      else mc_A++;
+    }
+    
+    return {
+      noGoal: mc_noGoal/sims,
+      over05: mc_over05/sims,
+      over15: mc_over15/sims,
+      H: mc_H/sims,
+      X: mc_X/sims,
+      A: mc_A/sims
+    };
+  }
+  
+  // Poisson slumpgenerator
+  function poissonRandom(lambda) {
+    if(lambda < 30) {
+      let L = Math.exp(-lambda);
+      let k = 0;
+      let p = 1;
+      do {
+        k++;
+        p *= Math.random();
+      } while (p > L);
+      return k - 1;
+    } else {
+      // Approximation för stora lambda
+      return Math.max(0, Math.round(lambda + Math.sqrt(lambda) * (Math.random() - 0.5) * 2.5));
+    }
+  }
+
+  const mc = runMonteCarlo(lamH, lamA, sims, sh, sa);
+
+  // Fair odds för båda metoderna
+  const f_noGoal = fair(noGoal);
+  const f_over05 = fair(over05);
+  const f_over15 = fair(over15);
+  const f_H = fair(H);
+  const f_X = fair(X);
+  const f_A = fair(A);
+  
+  const mc_f_noGoal = fair(mc.noGoal);
+  const mc_f_over05 = fair(mc.over05);
+  const mc_f_over15 = fair(mc.over15);
+  const mc_f_H = fair(mc.H);
+  const mc_f_X = fair(mc.X);
+  const mc_f_A = fair(mc.A);
+
+  // Value check
+  function valueCheck(mkt, fair) {
+    return (parseFloat(mkt) > parseFloat(fair)) ? "✅" : "❌";
+  }
+  
+  // xT färgkodning
+  function getxTColor(xT) {
+    if (xT >= 0.8) return '#22c55e'; // Grön - Mycket hög fara
+    if (xT >= 0.4) return '#f59e0b'; // Gul - Hög fara  
+    if (xT >= 0.2) return '#6b7280'; // Grå - Måttlig fara
+    return '#ef4444'; // Röd - Låg fara
+  }
+  
+  function formatxT(xT) {
+      const color = getxTColor(xT);
+      return `<span style="color:${color}; font-weight:bold;">${xT.toFixed(3)}</span>`;
+    }
+
+
+  const out = document.getElementById("out");
+  out.style.display = "block";
+  out.innerHTML = `
+    <div class="kpi">
+      <span class="pill">xT Hemma: ${rates.xTHome.toFixed(3)}</span>
+      <span class="pill">xT Borta: ${rates.xTAway.toFixed(3)}</span>
+      <span class="pill">Momentum H: ${rates.momentumHome.toFixed(3)}</span>
+      <span class="pill">Momentum B: ${rates.momentumAway.toFixed(3)}</span>
+    </div>
+    
+    <div class="kpi">
+      <span class="pill">Förv. mål kvar H: ${lamH.toFixed(2)}</span>
+      <span class="pill">Förv. mål kvar B: ${lamA.toFixed(2)}</span>
+      <span class="pill">Minuter kvar: ${R}</span>
+      <span class="pill">MC-simuleringar: ${sims}</span>
+    </div>
+    
+    <h4>xT & Momentum-baserad analys</h4>
+    
+    <div style="background:#f0f8ff; border:1px solid #b3d9ff; border-radius:8px; padding:12px; margin:10px 0; font-size:13px;">
+      <strong>📊 xT-värden förklarat:</strong><br>
+      <span style="color:#22c55e;">• 0.8+ = Mycket hög fara</span> | 
+      <span style="color:#f59e0b;">• 0.4-0.8 = Hög fara</span> | 
+      <span style="color:#6b7280;">• 0.2-0.4 = Måttlig fara</span> | 
+      <span style="color:#ef4444;">• Under 0.2 = Låg fara</span><br>
+      <em>xT mäter lagets totala målhot baserat på skott, träffsäkerhet och positioner</em>
+    </div>
+    
+    <table>
+      <thead>
+        <tr><th>Lag</th><th>xT-värde</th><th>Momentum</th><th>Målfrekvens/min</th><th>Förv. mål kvar</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Hemmalag</strong></td><td>${formatxT(rates.xTHome)}</td><td>${rates.momentumHome.toFixed(3)}</td><td>${rates.homeRate.toFixed(4)}</td><td>${lamH.toFixed(2)}</td></tr>
+        <tr><td><strong>Bortalag</strong></td><td>${formatxT(rates.xTAway)}</td><td>${rates.momentumAway.toFixed(3)}</td><td>${rates.awayRate.toFixed(4)}</td><td>${lamA.toFixed(2)}</td></tr>
+      </tbody>
+    </table>
+    
+    <h4>Marknadsanalys (Poisson vs Monte Carlo)</h4>
+    <table>
+      <thead>
+        <tr><th>Marknad</th><th>Poisson odds</th><th>MC odds</th><th>Marknadsodds</th><th>Värde?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Inga mål</td><td>${f_noGoal}</td><td>${mc_f_noGoal}</td><td>-</td><td>-</td></tr>
+        <tr><td>Över 0.5</td><td>${f_over05}</td><td>${mc_f_over05}</td><td>${mkt_over05}</td><td>${valueCheck(mkt_over05, f_over05)}</td></tr>
+        <tr><td>Över 1.5</td><td>${f_over15}</td><td>${mc_f_over15}</td><td>${mkt_over15}</td><td>${valueCheck(mkt_over15, f_over15)}</td></tr>
+        <tr><td>Hemma</td><td>${f_H}</td><td>${mc_f_H}</td><td>${mkt_home}</td><td>${valueCheck(mkt_home, f_H)}</td></tr>
+        <tr><td>Oavgjort</td><td>${f_X}</td><td>${mc_f_X}</td><td>${mkt_draw}</td><td>${valueCheck(mkt_draw, f_X)}</td></tr>
+        <tr><td>Borta</td><td>${f_A}</td><td>${mc_f_A}</td><td>${mkt_away}</td><td>${valueCheck(mkt_away, f_A)}</td></tr>
+      </tbody>
+    </table>
+    
+    <div style="margin-top:15px; font-size:13px; color:#666;">
+      <strong>xT-modell:</strong> Förväntad fara baserat på skottstatistik, träffsäkerhet och positioner<br>
+      <strong>Momentum:</strong> Tidsbaserad viktning med målhistorik och kortpåverkan<br>
+      <strong>MC vs Poisson:</strong> Monte Carlo simulering (${sims} körningar) vs teoretisk Poisson-fördelning
+    </div>
+  `;
+}
+
+// Sparfunktioner - globalt tillgängliga
+function saveCalculation() {
+  const data = {
+    timestamp: new Date().toLocaleString('sv-SE'),
+    inputs: {
+      minute: document.getElementById('minute').value,
+      stopp: document.getElementById('stopp').value,
+      sh: document.getElementById('sh').value,
+      sa: document.getElementById('sa').value,
+      yc: document.getElementById('yc').value,
+      red_h: document.getElementById('red_h').value,
+      red_a: document.getElementById('red_a').value,
+      shots_h: document.getElementById('shots_h').value,
+      shots_a: document.getElementById('shots_a').value,
+      sot_h: document.getElementById('sot_h').value,
+      sot_a: document.getElementById('sot_a').value,
+      corners_h: document.getElementById('corners_h').value,
+      corners_a: document.getElementById('corners_a').value,
+      da_h: document.getElementById('da_h').value,
+      da_a: document.getElementById('da_a').value,
+      mkt_over05: document.getElementById('mkt_over05').value,
+      mkt_over15: document.getElementById('mkt_over15').value,
+      mkt_home: document.getElementById('mkt_home').value,
+      mkt_draw: document.getElementById('mkt_draw').value,
+      mkt_away: document.getElementById('mkt_away').value,
+      sims: document.getElementById('sims').value
+    }
+  };
+
+  const name = prompt('Namnge denna beräkning:');
+  if (!name) return;
+
+  data.name = name;
+
+  let saved = JSON.parse(localStorage.getItem('xTCalculations') || '[]');
+  saved.unshift(data);
+  if (saved.length > 20) saved = saved.slice(0, 20);
+  localStorage.setItem('xTCalculations', JSON.stringify(saved));
+  alert('Beräkning sparad!');
+}
+
+function loadCalculation() {
+  const saved = JSON.parse(localStorage.getItem('xTCalculations') || '[]');
+  if (saved.length === 0) {
+    alert('Inga sparade beräkningar finns.');
+    return;
+  }
+
+  const names = saved.map((calc, i) => `${i + 1}. ${calc.name} (${calc.timestamp})`);
+  const choice = prompt('Välj beräkning att ladda:\n\n' + names.join('\n') + '\n\nAnge nummer:');
+  const index = parseInt(choice) - 1;
+
+  if (index >= 0 && index < saved.length) {
+    loadSavedCalculation(index);
+  }
+}
+
+function showSavedList() {
+  const saved = JSON.parse(localStorage.getItem('xTCalculations') || '[]');
+  const listDiv = document.getElementById('savedList');
+  const itemsDiv = document.getElementById('savedItems');
+
+  if (saved.length === 0) {
+    itemsDiv.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">Inga sparade beräkningar</div>';
+  } else {
+    itemsDiv.innerHTML = saved.map((calc, index) => `
+      <div class="saved-item" onclick="loadSavedCalculation(${index})">
+        <div class="saved-item-header">${calc.name}</div>
+        <div class="saved-item-details">
+          ${calc.timestamp} | Mål: ${calc.inputs.sh}-${calc.inputs.sa} | 
+          Min: ${calc.inputs.minute} | 
+          <span onclick="deleteSavedCalculation(${index}); event.stopPropagation();" style="color:#ef4444; cursor:pointer;">🗑️ Ta bort</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  listDiv.style.display = listDiv.style.display === 'none' ? 'block' : 'none';
+}
+
+function loadSavedCalculation(index) {
+  const saved = JSON.parse(localStorage.getItem('xTCalculations') || '[]');
+  if (index >= 0 && index < saved.length) {
+    const calc = saved[index];
+    Object.keys(calc.inputs).forEach(key => {
+      const element = document.getElementById(key);
+      if (element) element.value = calc.inputs[key];
+    });
+    document.getElementById('savedList').style.display = 'none';
+    alert(`Beräkning "${calc.name}" laddad!`);
+  }
+}
+
+function deleteSavedCalculation(index) {
+  if (confirm('Är du säker på att du vill ta bort denna beräkning?')) {
+    let saved = JSON.parse(localStorage.getItem('xTCalculations') || '[]');
+    saved.splice(index, 1);
+    localStorage.setItem('xTCalculations', JSON.stringify(saved));
+    showSavedList();
+  }
+}
+</script>
+</body>
+</html>
