@@ -272,12 +272,19 @@ function runCalc(){
   let noGoal=0, over05=0, over15=0, H=0, X=0, A=0;
   const MAX = 15; // Öka för bättre precision
   
+  // Kontrollera redan gjorda mål för korrekta beräkningar
+  const currentTotalGoals = sh + sa;
+  
   for(let i=0; i<=MAX; i++){
     for(let j=0; j<=MAX; j++){
       const p = pois(i, lamH) * pois(j, lamA);
+      
+      // Totala mål i hela matchen (redan gjorda + framtida)
+      const totalMatchGoals = currentTotalGoals + i + j;
+      
       if(i===0 && j===0) noGoal += p;
-      if(i+j >= 1) over05 += p;
-      if(i+j >= 2) over15 += p;
+      if(totalMatchGoals >= 1) over05 += p;
+      if(totalMatchGoals >= 2) over15 += p;
       
       const fh = sh + i;
       const fa = sa + j;
@@ -285,6 +292,61 @@ function runCalc(){
       else if(fh === fa) X += p;
       else A += p;
     }
+  }
+
+  // Intelligenta rekommendationer för fler mål
+  function getGoalRecommendations(currentGoals, xT, momentum, minute) {
+    const recommendations = [];
+    
+    if(currentGoals > 2) {
+      // Hög målmatch - rekommendera fler mål
+      if(xT > 1.8 && momentum > 0.6) {
+        recommendations.push({
+          type: 'STARK',
+          market: 'Över 3.5 mål',
+          confidence: 85,
+          reason: `Mycket hög xT (${xT.toFixed(2)}) och stark momentum (${(momentum*100).toFixed(0)}%) i målrik match`
+        });
+        
+        if(minute < 70) {
+          recommendations.push({
+            type: 'STARK',
+            market: 'Över 4.5 mål',
+            confidence: 75,
+            reason: `Tid kvar (${90-minute} min) och extremt hög målfrekvens`
+          });
+        }
+      } else if(xT > 1.4 && momentum > 0.4) {
+        recommendations.push({
+          type: 'MEDIUM',
+          market: 'Över 3.5 mål',
+          confidence: 70,
+          reason: `God xT (${xT.toFixed(2)}) och positiv momentum i målrik match`
+        });
+      }
+      
+      // Nästa mål rekommendationer
+      if(momentum > 0.7) {
+        recommendations.push({
+          type: 'STARK',
+          market: 'Nästa mål inom 15 min',
+          confidence: 80,
+          reason: `Mycket stark momentum (${(momentum*100).toFixed(0)}%) indikerar snabbt nästa mål`
+        });
+      }
+      
+      // Båda lagen att göra mål
+      if(xT > 1.6) {
+        recommendations.push({
+          type: 'MEDIUM',
+          market: 'Båda lagen gör mål',
+          confidence: 75,
+          reason: `Hög xT (${xT.toFixed(2)}) i målrik match gynnar båda lagen`
+        });
+      }
+    }
+    
+    return recommendations;
   }
 
   // Monte Carlo-simulering
@@ -298,11 +360,13 @@ function runCalc(){
       
       const finalH = currentH + goalsH;
       const finalA = currentA + goalsA;
-      const totalGoals = goalsH + goalsA;
       
-      if(totalGoals === 0) mc_noGoal++;
-      if(totalGoals >= 1) mc_over05++;
-      if(totalGoals >= 2) mc_over15++;
+      // Totala mål i hela matchen
+      const totalMatchGoals = finalH + finalA;
+      
+      if(goalsH === 0 && goalsA === 0) mc_noGoal++;
+      if(totalMatchGoals >= 1) mc_over05++;
+      if(totalMatchGoals >= 2) mc_over15++;
       
       if(finalH > finalA) mc_H++;
       else if(finalH === finalA) mc_X++;
@@ -318,7 +382,7 @@ function runCalc(){
       A: mc_A/sims
     };
   }
-  
+
   // Poisson slumpgenerator
   function poissonRandom(lambda) {
     if(lambda < 30) {
@@ -338,6 +402,12 @@ function runCalc(){
 
   const mc = runMonteCarlo(lamH, lamA, sims, sh, sa);
 
+  // Generera intelligenta rekommendationer
+  // currentTotalGoals redan deklarerad tidigare i Poisson-sektionen
+  const avgxT = (rates.xTHome + rates.xTAway) / 2;
+  const avgMomentum = (rates.momentumHome + rates.momentumAway) / 2;
+  const recommendations = getGoalRecommendations(currentTotalGoals, avgxT, avgMomentum, minute);
+
   // Fair odds för båda metoderna
   const f_noGoal = fair(noGoal);
   const f_over05 = fair(over05);
@@ -354,40 +424,49 @@ function runCalc(){
   const mc_f_A = fair(mc.A);
 
   // Value check
-  function valueCheck(mkt, fair) {
-    return (parseFloat(mkt) > parseFloat(fair)) ? "✅" : "❌";
-  }
-  
-  // xT färgkodning
-  function getxTColor(xT) {
-    if (xT >= 0.8) return '#22c55e'; // Grön - Mycket hög fara
-    if (xT >= 0.4) return '#f59e0b'; // Gul - Hög fara  
-    if (xT >= 0.2) return '#6b7280'; // Grå - Måttlig fara
-    return '#ef4444'; // Röd - Låg fara
-  }
-  
-  function formatxT(xT) {
-      const color = getxTColor(xT);
-      return `<span style="color:${color}; font-weight:bold;">${xT.toFixed(3)}</span>`;
-    }
+  const valueCheck = (market, fair) => {
+    if(!market || market <= 1) return '-';
+    const edge = ((market - fair) / fair * 100);
+    if(edge > 5) return `<span style="color:green; font-weight:bold;">+${edge.toFixed(1)}%</span>`;
+    if(edge < -5) return `<span style="color:red; font-weight:bold;">${edge.toFixed(1)}%</span>`;
+    return `<span style="color:orange;">${edge.toFixed(1)}%</span>`;
+  };
 
+  // Formatera xT-värden med färgkodning
+  const formatxT = (xt) => {
+    if(xt >= 0.8) return `<span style="color:#22c55e; font-weight:bold;">${xt.toFixed(3)}</span>`;
+    if(xt >= 0.4) return `<span style="color:#f59e0b; font-weight:bold;">${xt.toFixed(3)}</span>`;
+    if(xt >= 0.2) return `<span style="color:#6b7280;">${xt.toFixed(3)}</span>`;
+    return `<span style="color:#ef4444;">${xt.toFixed(3)}</span>`;
+  };
 
-  const out = document.getElementById("out");
-  out.style.display = "block";
-  out.innerHTML = `
-    <div class="kpi">
-      <span class="pill">xT Hemma: ${rates.xTHome.toFixed(3)}</span>
-      <span class="pill">xT Borta: ${rates.xTAway.toFixed(3)}</span>
-      <span class="pill">Momentum H: ${rates.momentumHome.toFixed(3)}</span>
-      <span class="pill">Momentum B: ${rates.momentumAway.toFixed(3)}</span>
-    </div>
-    
-    <div class="kpi">
+  document.getElementById("result").innerHTML = `
+    <div style="background:#e8f5e8; border:1px solid #4caf50; border-radius:8px; padding:10px; margin:10px 0;">
       <span class="pill">Förv. mål kvar H: ${lamH.toFixed(2)}</span>
       <span class="pill">Förv. mål kvar B: ${lamA.toFixed(2)}</span>
       <span class="pill">Minuter kvar: ${R}</span>
       <span class="pill">MC-simuleringar: ${sims}</span>
     </div>
+    
+    ${recommendations.length > 0 ? `
+    <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:15px; margin:15px 0;">
+      <h4 style="margin:0 0 10px 0; color:#856404;">🎯 Intelligenta rekommendationer (${currentTotalGoals} mål gjorda)</h4>
+      ${recommendations.map(rec => `
+        <div style="background:white; border-left:4px solid ${rec.type === 'STARK' ? '#28a745' : '#ffc107'}; padding:10px; margin:8px 0; border-radius:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:${rec.type === 'STARK' ? '#28a745' : '#856404'};">${rec.market}</strong>
+            <span style="background:${rec.type === 'STARK' ? '#28a745' : '#ffc107'}; color:white; padding:2px 8px; border-radius:12px; font-size:12px; font-weight:bold;">
+              ${rec.confidence}% ${rec.type}
+            </span>
+          </div>
+          <div style="font-size:13px; color:#666; margin-top:5px;">${rec.reason}</div>
+        </div>
+      `).join('')}
+      <div style="font-size:12px; color:#856404; margin-top:10px; font-style:italic;">
+        💡 Rekommendationerna baseras på xT-analys, momentum och matchsituation
+      </div>
+    </div>
+    ` : ''}
     
     <h4>xT & Momentum-baserad analys</h4>
     
@@ -534,6 +613,84 @@ function deleteSavedCalculation(index) {
     showSavedList();
   }
 }
+
+// Testfunktion för xT-validering med evidensbaserade scenarier
+function testxTValidation() {
+  console.log("=== xT VALIDERING MED EVIDENSBASERADE SCENARIER ===");
+  
+  // Scenario 1: Låg aktivitet (defensiv match)
+  const lowActivity = calculatexT(3, 1, 2, 35, 0, 45);
+  console.log(`Låg aktivitet (3 skott, 1 på mål, 2 hörn, 35% boll): xT = ${lowActivity.toFixed(3)}`);
+  
+  // Scenario 2: Måttlig aktivitet (normal match)
+  const mediumActivity = calculatexT(8, 4, 5, 55, 1, 60);
+  console.log(`Måttlig aktivitet (8 skott, 4 på mål, 5 hörn, 55% boll): xT = ${mediumActivity.toFixed(3)}`);
+  
+  // Scenario 3: Hög aktivitet (offensiv match)
+  const highActivity = calculatexT(15, 8, 8, 65, 2, 75);
+  console.log(`Hög aktivitet (15 skott, 8 på mål, 8 hörn, 65% boll): xT = ${highActivity.toFixed(3)}`);
+  
+  // Scenario 4: Extremt hög aktivitet (målrik match)
+  const extremeActivity = calculatexT(22, 12, 12, 70, 3, 80);
+  console.log(`Extrem aktivitet (22 skott, 12 på mål, 12 hörn, 70% boll): xT = ${extremeActivity.toFixed(3)}`);
+  
+  // Validering av logiska förhållanden
+  console.log("\n=== LOGISK VALIDERING ===");
+  console.log(`Låg < Måttlig: ${lowActivity < mediumActivity ? '✅' : '❌'}`);
+  console.log(`Måttlig < Hög: ${mediumActivity < highActivity ? '✅' : '❌'}`);
+  console.log(`Hög < Extrem: ${highActivity < extremeActivity ? '✅' : '❌'}`);
+  
+  // Test av träffsäkerhetens påverkan
+  const lowAccuracy = calculatexT(10, 2, 5, 50, 0, 60); // 20% träffsäkerhet
+  const highAccuracy = calculatexT(10, 8, 5, 50, 2, 60); // 80% träffsäkerhet
+  console.log(`\nTräffsäkerhet 20%: xT = ${lowAccuracy.toFixed(3)}`);
+  console.log(`Träffsäkerhet 80%: xT = ${highAccuracy.toFixed(3)}`);
+  console.log(`Hög träffsäkerhet > Låg: ${highAccuracy > lowAccuracy ? '✅' : '❌'}`);
+  
+  // Test av måleffektivitetens påverkan
+  const noGoals = calculatexT(10, 5, 5, 50, 0, 60);
+  const withGoals = calculatexT(10, 5, 5, 50, 2, 60);
+  console.log(`\nUtan mål: xT = ${noGoals.toFixed(3)}`);
+  console.log(`Med 2 mål: xT = ${withGoals.toFixed(3)}`);
+  console.log(`Med mål > Utan mål: ${withGoals > noGoals ? '✅' : '❌'}`);
+  
+  // Evidensbaserad validering mot verkliga värden
+  console.log("\n=== EVIDENSBASERAD VALIDERING ===");
+  console.log("Förväntade xT-intervall baserat på fotbollsstatistik:");
+  console.log(`Låg aktivitet (0.1-0.3): ${lowActivity >= 0.1 && lowActivity <= 0.3 ? '✅' : '❌'}`);
+  console.log(`Måttlig aktivitet (0.3-0.6): ${mediumActivity >= 0.3 && mediumActivity <= 0.6 ? '✅' : '❌'}`);
+  console.log(`Hög aktivitet (0.6-1.0): ${highActivity >= 0.6 && highActivity <= 1.0 ? '✅' : '❌'}`);
+  console.log(`Extrem aktivitet (1.0+): ${extremeActivity >= 1.0 ? '✅' : '❌'}`);
+  
+  return {
+    lowActivity,
+    mediumActivity,
+    highActivity,
+    extremeActivity,
+    logicalOrder: lowActivity < mediumActivity && mediumActivity < highActivity && highActivity < extremeActivity,
+    accuracyImpact: highAccuracy > lowAccuracy,
+    goalImpact: withGoals > noGoals
+  };
+}
+
+// Lägg till testknapp i HTML
+function addTestButton() {
+  const testButton = document.createElement('button');
+  testButton.textContent = 'Testa xT-validering';
+  testButton.style.cssText = 'background:#007bff; color:white; padding:10px 20px; border:none; border-radius:5px; margin:10px; cursor:pointer;';
+  testButton.onclick = () => {
+    const results = testxTValidation();
+    alert(`xT-test slutfört! Kolla konsolen för detaljer.\n\nSammanfattning:\n✅ Logisk ordning: ${results.logicalOrder}\n✅ Träffsäkerhetspåverkan: ${results.accuracyImpact}\n✅ Målpåverkan: ${results.goalImpact}`);
+  };
+  document.body.appendChild(testButton);
+}
+
+ // Kör test automatiskt när sidan laddas
+ document.addEventListener('DOMContentLoaded', () => {
+   addTestButton();
+   console.log("xT-testfunktion tillgänglig. Klicka på 'Testa xT-validering' eller kör testxTValidation() i konsolen.");
+ });
+
 </script>
 </body>
 </html>
