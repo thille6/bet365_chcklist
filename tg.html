@@ -159,13 +159,13 @@
   <div id="savedCalculations" style="display:none;"></div>
 
 <script>
-// xT-beräkning (Expected Threat) - justerade koefficienter för realistiska värden
+// xT-beräkning (Expected Threat) - realistiska koefficienter för fotbollsscenarier
 function calculatexT(shots, shotsOnTarget, goals, corners, possession) {
-  const shotThreat = shots * 0.02; // Reducerat från 0.08
-  const accuracyBonus = (shotsOnTarget / Math.max(shots, 1)) * 0.08; // Reducerat från 0.15
-  const conversionBonus = (goals / Math.max(shotsOnTarget, 1)) * 0.12; // Reducerat från 0.25
-  const cornerThreat = corners * 0.03; // Reducerat från 0.12
-  const possessionThreat = (possession / 100) * 0.05; // Reducerat från 0.1
+  const shotThreat = shots * 0.01; // Ytterligare reducerat för realism
+  const accuracyBonus = (shotsOnTarget / Math.max(shots, 1)) * 0.04; // Halverat för bättre balans
+  const conversionBonus = (goals / Math.max(shotsOnTarget, 1)) * 0.08; // Reducerat för realistiska nivåer
+  const cornerThreat = corners * 0.015; // Halverat - hörn mindre viktiga
+  const possessionThreat = (possession / 100) * 0.025; // Halverat för subtilare påverkan
   
   return shotThreat + accuracyBonus + conversionBonus + cornerThreat + possessionThreat;
 }
@@ -238,9 +238,9 @@ function poissonRandom(lambda) {
   return k - 1;
 }
 
-// Formatering av xT-värden
+// Formatering av xT-värden (justerade tröskelvärden)
 function formatxT(value) {
-  const color = value >= 0.6 ? '#22c55e' : value >= 0.35 ? '#f59e0b' : value >= 0.15 ? '#6b7280' : '#ef4444';
+  const color = value >= 0.30 ? '#22c55e' : value >= 0.20 ? '#f59e0b' : value >= 0.10 ? '#6b7280' : '#ef4444';
   return `<span style="color:${color}; font-weight:bold;">${value.toFixed(3)}</span>`;
 }
 
@@ -325,8 +325,8 @@ function generateRecommendations(inputs, results) {
     }
   }
   
-  // Scenario 3: Extremt högt xT-värde
-  if (maxXt >= 0.6) {
+  // Scenario 3: Extremt högt xT-värde (justerat tröskelvärde)
+  if (maxXt >= 0.30) {
     const dominantTeam = results.rates.xTHome > results.rates.xTAway ? 'Hemmalaget' : 'Bortalaget';
     recommendations.push({
       type: 'Målskytt',
@@ -359,20 +359,20 @@ function generateRecommendations(inputs, results) {
     });
   }
   
-  // Scenario 6: Asymmetrisk match (en sida dominerar)
+  // Scenario 6: Asymmetrisk match (en sida dominerar) - justerade tröskelvärden
   const xTDiff = Math.abs(results.rates.xTHome - results.rates.xTAway);
-  if (xTDiff > 0.3) {
+  if (xTDiff > 0.15) {
     const dominantTeam = results.rates.xTHome > results.rates.xTAway ? 'Hemmalaget' : 'Bortalaget';
     recommendations.push({
       type: 'Resultat',
       suggestion: `${dominantTeam} att vinna`,
       reason: `Stor xT-skillnad (${xTDiff.toFixed(3)}). ${dominantTeam} dominerar helt.`,
-      confidence: xTDiff > 0.5 ? 'Hög' : 'Medium',
+      confidence: xTDiff > 0.25 ? 'Hög' : 'Medium',
       icon: '👑'
     });
     
     // Extra rekommendation för extremt dominans
-    if (xTDiff > 0.5) {
+    if (xTDiff > 0.25) {
       recommendations.push({
         type: 'Handicap',
         suggestion: `${dominantTeam} -1.5 handicap`,
@@ -522,11 +522,11 @@ function runCalc() {
     <h3>🎯 xT & Momentum-analys</h3>
     
     <div style="background:#f0f8ff; border:1px solid #b3d9ff; border-radius:8px; padding:12px; margin:10px 0; font-size:13px;">
-      <strong>📊 xT-värden förklarat:</strong><br>
-      <span style="color:#22c55e;">• 0.6+ = Mycket hög fara</span> | 
-      <span style="color:#f59e0b;">• 0.35-0.6 = Hög fara</span> | 
-      <span style="color:#6b7280;">• 0.15-0.35 = Måttlig fara</span> | 
-      <span style="color:#ef4444;">• Under 0.15 = Låg fara</span><br>
+      <strong>📊 xT-värden förklarat (justerade nivåer):</strong><br>
+      <span style="color:#22c55e;">• 0.30+ = Mycket hög fara</span> | 
+      <span style="color:#f59e0b;">• 0.20-0.30 = Hög fara</span> | 
+      <span style="color:#6b7280;">• 0.10-0.20 = Måttlig fara</span> | 
+      <span style="color:#ef4444;">• Under 0.10 = Låg fara</span><br>
       <em>xT mäter lagets totala målhot baserat på skott, träffsäkerhet och positioner</em>
     </div>
     
