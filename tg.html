@@ -15,8 +15,13 @@
       --border:#e5e7eb;
       --ink:#1a1a1a;
     }
-    body {font-family: Arial, sans-serif; background:var(--bg); color:var(--ink); margin:0; padding:20px;}
-    h1 {color:var(--blue);}
+    body {font-family: Arial, sans-serif; background:var(--bg); color:var(--ink); margin:0; padding:0;}
+    header {background:var(--blue); color:#fff; padding:20px; text-align:center;}
+    .nav {margin-top:15px;}
+    .nav a {background:#fff; color:var(--blue); text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;}
+    .nav a:hover {background:#f0f8ff;}
+    .container {padding:20px;}
+    h1 {color:#fff; margin-top:0;}
     .grid2 {display:grid;grid-template-columns:1fr 1fr;gap:20px}
     .card {background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; margin:10px 0;}
     .input-group {margin:10px 0;}
@@ -34,8 +39,17 @@
   </style>
 </head>
 <body>
-  <h1>🎯 Bet365 Live xT & Momentum-kalkylator</h1>
-  <p><strong>Expected Threat (xT)</strong> + <strong>Momentum</strong> + <strong>Monte Carlo-simulering</strong> för live-betting</p>
+  <header>
+    <h1>🎯 Bet365 Live xT & Momentum-kalkylator</h1>
+    <div class="nav">
+      <a href="index.html">🏠 Hem</a>
+      <a href="prematch.html">⬅️ Pre-Match</a>
+      <a href="live.html">📊 Live</a>
+      <a href="livecalc.html">⚽ xG Kalkylator</a>
+    </div>
+  </header>
+  <div class="container">
+    <p><strong>Expected Threat (xT)</strong> + <strong>Momentum</strong> + <strong>Monte Carlo-simulering</strong> för live-betting</p>
 
   <div class="grid2">
     <div class="card">
@@ -1315,5 +1329,6 @@ function addMonteCarloTestButton() {
 });
 
 </script>
+</div>
 </body>
 </html>

@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Live Odds Kalkylator – Stats + xG med Tydliga Staplar</title>
   <style>
-    body {font-family: Arial, sans-serif; background:#f9f9f9; color:#1a1a1a; margin:0; padding:20px;}
-    h1 {color:#004aad;}
+    body {font-family: Arial, sans-serif; background:#f9f9f9; color:#1a1a1a; margin:0; padding:0;}
+    header {background:#004aad; color:#fff; padding:20px; text-align:center;}
+    .nav {margin-top:15px;}
+    .nav a {background:#fff; color:#004aad; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;}
+    .nav a:hover {background:#f0f8ff;}
+    .container {padding:20px;}
+    h1 {color:#004aad; margin-top:0;}
     .box {background:#fff; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:20px;}
     h3 {margin-top:15px; color:#004aad;}
     label {display:block; margin-top:8px;}
@@ -27,7 +32,16 @@
   </style>
 </head>
 <body>
-  <h1>⚽ Live Odds-kalkylator (Stats + xG)</h1>
+  <header>
+    <h1>⚽ Live Odds-kalkylator (Stats + xG)</h1>
+    <div class="nav">
+      <a href="index.html">🏠 Hem</a>
+      <a href="prematch.html">⬅️ Pre-Match</a>
+      <a href="live.html">📊 Live</a>
+      <a href="tg.html">🎯 xT-Kalkylator</a>
+    </div>
+  </header>
+  <div class="container">
   <p>Mata in totalsiffror och/eller live xG. Välj om du vill köra enbart statistik eller hybrid med xG – i hybrid kan du styra balansen med en slider eller snabbknappar.</p>
 
   <div class="box">
@@ -365,5 +379,6 @@ function copyPrompt(){
   });
 }
 </script>
+</div>
 </body>
 </html>
