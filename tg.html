@@ -75,6 +75,10 @@
         <input type="number" id="homePossession" value="58" min="0" max="100">
       </div>
       <div class="input-group">
+        <label>Dangerous Attacks (DA):</label>
+        <input type="number" id="homeDangerousAttacks" value="12" min="0">
+      </div>
+      <div class="input-group">
         <label>Gula kort:</label>
         <input type="number" id="homeYellowCards" value="1" min="0">
       </div>
@@ -105,6 +109,10 @@
       <div class="input-group">
         <label>Bollinnehav (%):</label>
         <input type="number" id="awayPossession" value="42" min="0" max="100">
+      </div>
+      <div class="input-group">
+        <label>Dangerous Attacks (DA):</label>
+        <input type="number" id="awayDangerousAttacks" value="8" min="0">
       </div>
       <div class="input-group">
         <label>Gula kort:</label>
@@ -173,13 +181,115 @@
   <div id="savedCalculations" style="display:none;"></div>
 
 <script>
-// xT-beräkning (Expected Threat) - realistiska koefficienter för fotbollsscenarier
+// ===== KALIBRERBARA PARAMETRAR =====
+const LIGA_BASE_RATE = 1.35; // Genomsnittlig målfrekvens per lag per match
+const SHRINK_GAMMA = 0.6; // Shrinkage-faktor mot ligagenomsnitt (0-1)
+
+// Vikter för olika statistik
+const W_SOT = 0.25; // Skott på mål
+const W_DA = 0.20;  // Dangerous Attacks
+const W_CORNERS = 0.15; // Hörnsparkar
+const W_GOALS = 0.40; // Mål (högst vikt)
+
+// Game-state och korteffekter
+const GS_LEAD_FACTOR = 0.85; // Reduktion när man leder
+const GS_BEHIND_FACTOR = 1.15; // Ökning när man ligger under
+const RED_CARD_FACTOR = 0.7; // Reduktion per rött kort
+const YC_FACTOR = 0.95; // Reduktion per gult kort
+
+const MAX_RATE_PER_MIN = 0.08; // Maximal målfrekvens per minut
+
+// ===== HJÄLPFUNKTIONER =====
+function sigmoid(x) {
+  return 1 / (1 + Math.exp(-x));
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function safeDiv(a, b) {
+  return b > 0 ? a / b : 0;
+}
+
+function share(value, total) {
+  return total > 0 ? value / total : 0.5;
+}
+
+function recencyFlag(minute) {
+  return minute > 75 ? 1.2 : 1.0; // Öka viktning för senaste 15 min
+}
+
+// ===== FEATURE BUILDING =====
+function buildFeaturesTeam(shots, shotsOnTarget, dangerousAttacks, corners, goals, minute, totalMinute) {
+  const timeNorm = totalMinute > 0 ? totalMinute / 90 : 1;
+  const recency = recencyFlag(minute);
+  
+  return {
+    sot_per_min: safeDiv(shotsOnTarget, timeNorm) * recency,
+    da_per_min: safeDiv(dangerousAttacks, timeNorm) * recency,
+    corners_per_min: safeDiv(corners, timeNorm) * recency,
+    goals_per_min: safeDiv(goals, timeNorm) * recency
+  };
+}
+
+// ===== xT-PROXY MED SHRINKAGE OCH LOGISTISK LÄNK =====
+function xtProxyToRatePerMin(features) {
+  // Linjär kombination av features
+  const linear = W_SOT * features.sot_per_min + 
+                 W_DA * features.da_per_min + 
+                 W_CORNERS * features.corners_per_min + 
+                 W_GOALS * features.goals_per_min;
+  
+  // Sigmoid för att mappa till sannolikhet
+  const prob = sigmoid(linear - 2); // -2 för att centrera
+  
+  // Konvertera till rate per minut
+  const rawRate = prob * 0.05; // Skala till rimlig målfrekvens
+  
+  // Shrinkage mot ligagenomsnitt
+  const ligaRatePerMin = LIGA_BASE_RATE / 90;
+  const shrunkRate = SHRINK_GAMMA * rawRate + (1 - SHRINK_GAMMA) * ligaRatePerMin;
+  
+  // Clamp till max rate
+  return clamp(shrunkRate, 0, MAX_RATE_PER_MIN);
+}
+
+// ===== GAME-STATE OCH KORTEFFEKTER =====
+function applyGameStateCards(rate, lead, minute, yellowCards, redCards) {
+  let adjustedRate = rate;
+  
+  // Game-state effekter (mjukare kurvor)
+  if (lead > 0) {
+    const leadEffect = Math.pow(GS_LEAD_FACTOR, Math.min(lead, 3));
+    adjustedRate *= leadEffect;
+  } else if (lead < 0) {
+    const behindEffect = Math.pow(GS_BEHIND_FACTOR, Math.min(-lead, 3));
+    adjustedRate *= behindEffect;
+  }
+  
+  // Tidseffekt för ledande lag (parkera bussen)
+  if (lead > 0 && minute > 70) {
+    const timeReduction = 1 - (minute - 70) * 0.01;
+    adjustedRate *= Math.max(timeReduction, 0.8);
+  }
+  
+  // Korteffekter
+  adjustedRate *= Math.pow(YC_FACTOR, yellowCards);
+  adjustedRate *= Math.pow(RED_CARD_FACTOR, redCards);
+  
+  return Math.max(adjustedRate, 0.001); // Minimum rate
+}
+
+// ===== BAKÅTKOMPATIBILITET =====
+// Wrapper för gamla calculatexT-funktionen (för testfunktioner)
 function calculatexT(shots, shotsOnTarget, goals, corners, possession) {
-  const shotThreat = shots * 0.01; // Ytterligare reducerat för realism
-  const accuracyBonus = (shotsOnTarget / Math.max(shots, 1)) * 0.04; // Halverat för bättre balans
-  const conversionBonus = (goals / Math.max(shotsOnTarget, 1)) * 0.08; // Reducerat för realistiska nivåer
-  const cornerThreat = corners * 0.015; // Halverat - hörn mindre viktiga
-  const possessionThreat = (possession / 100) * 0.025; // Halverat för subtilare påverkan
+  // Använd gamla logiken för testfunktioner
+  const shotThreat = shots * 0.01;
+  const accuracyBonus = (shotsOnTarget / Math.max(shots, 1)) * 0.04;
+  const conversionBonus = (goals / Math.max(shotsOnTarget, 1)) * 0.08;
+  const cornerThreat = corners * 0.015;
+  const possessionThreat = (possession / 100) * 0.025;
   
   return shotThreat + accuracyBonus + conversionBonus + cornerThreat + possessionThreat;
 }
@@ -470,6 +580,7 @@ function runCalc() {
   const homeGoals = parseInt(document.getElementById("homeGoals").value) || 0;
   const homeCorners = parseInt(document.getElementById("homeCorners").value) || 0;
   const homePossession = parseInt(document.getElementById("homePossession").value) || 0;
+  const homeDangerousAttacks = parseInt(document.getElementById("homeDangerousAttacks").value) || 0;
   const homeYellowCards = parseInt(document.getElementById("homeYellowCards").value) || 0;
   const homeRedCards = parseInt(document.getElementById("homeRedCards").value) || 0;
 
@@ -478,6 +589,7 @@ function runCalc() {
   const awayGoals = parseInt(document.getElementById("awayGoals").value) || 0;
   const awayCorners = parseInt(document.getElementById("awayCorners").value) || 0;
   const awayPossession = parseInt(document.getElementById("awayPossession").value) || 0;
+  const awayDangerousAttacks = parseInt(document.getElementById("awayDangerousAttacks").value) || 0;
   const awayYellowCards = parseInt(document.getElementById("awayYellowCards").value) || 0;
   const awayRedCards = parseInt(document.getElementById("awayRedCards").value) || 0;
 
@@ -491,25 +603,35 @@ function runCalc() {
   const mkt_draw = parseFloat(document.getElementById("drawOdds").value) || 0;
   const mkt_away = parseFloat(document.getElementById("awayWinOdds").value) || 0;
 
-  // Beräkna xT och momentum
-  const rates = {
-    xTHome: calculatexT(homeShots, homeShotsOnTarget, homeGoals, homeCorners, homePossession),
-    xTAway: calculatexT(awayShots, awayShotsOnTarget, awayGoals, awayCorners, awayPossession),
-    momentumHome: calculateMomentum(homeGoals, homeShots, homeCorners, minutesPlayed, totalMinutes),
-    momentumAway: calculateMomentum(awayGoals, awayShots, awayCorners, minutesPlayed, totalMinutes)
-  };
-
-  // Beräkna målfrekvenser
-  const remainingMinutes = totalMinutes - minutesPlayed;
-  const xTAdjustedHome = rates.xTHome * (1 + rates.momentumHome);
-  const xTAdjustedAway = rates.xTAway * (1 + rates.momentumAway);
+  // Bygg features för båda lagen
+  const homeLead = homeGoals - awayGoals;
+  const awayLead = awayGoals - homeGoals;
   
-  rates.homeRate = (xTAdjustedHome * remainingMinutes) / 90;
-  rates.awayRate = (xTAdjustedAway * remainingMinutes) / 90;
+  const homeFeatures = buildFeaturesTeam(homeShots, homeShotsOnTarget, homeDangerousAttacks, homeCorners, homeGoals, minutesPlayed, totalMinutes);
+  const awayFeatures = buildFeaturesTeam(awayShots, awayShotsOnTarget, awayDangerousAttacks, awayCorners, awayGoals, minutesPlayed, totalMinutes);
 
-  // Poisson-beräkningar
-  const lamH = rates.homeRate;
-  const lamA = rates.awayRate;
+  // Beräkna base rates med xT-proxy
+  const homeBaseRate = xtProxyToRatePerMin(homeFeatures);
+  const awayBaseRate = xtProxyToRatePerMin(awayFeatures);
+
+  // Applicera game-state och korteffekter
+  const homeAdjustedRate = applyGameStateCards(homeBaseRate, homeLead, minutesPlayed, homeYellowCards, homeRedCards);
+  const awayAdjustedRate = applyGameStateCards(awayBaseRate, awayLead, minutesPlayed, awayYellowCards, awayRedCards);
+
+  // Beräkna återstående tid och lambda-värden
+  const remainingMinutes = totalMinutes - minutesPlayed;
+  const lamH = homeAdjustedRate * remainingMinutes;
+  const lamA = awayAdjustedRate * remainingMinutes;
+
+  // Lagra rates för visning
+  const rates = {
+    xTHome: homeBaseRate,
+    xTAway: awayBaseRate,
+    homeRate: homeAdjustedRate,
+    awayRate: awayAdjustedRate,
+    momentumHome: homeAdjustedRate / homeBaseRate, // Visa justerings-ratio
+    momentumAway: awayAdjustedRate / awayBaseRate
+  };
 
   // Beräkna sannolikheter
   let f_H = 0, f_X = 0, f_A = 0;
@@ -533,24 +655,24 @@ function runCalc() {
   const toOdds = (prob) => prob > 0 ? (1 / prob).toFixed(2) : '-';
   
   document.getElementById("out").innerHTML = `
-    <h3>🎯 xT & Momentum-analys</h3>
+    <h3>🎯 Förbättrad xT-analys med Dangerous Attacks</h3>
     
     <div style="background:#f0f8ff; border:1px solid #b3d9ff; border-radius:8px; padding:12px; margin:10px 0; font-size:13px;">
-      <strong>📊 xT-värden förklarat (justerade nivåer):</strong><br>
-      <span style="color:#22c55e;">• 0.30+ = Mycket hög fara</span> | 
-      <span style="color:#f59e0b;">• 0.20-0.30 = Hög fara</span> | 
-      <span style="color:#6b7280;">• 0.10-0.20 = Måttlig fara</span> | 
-      <span style="color:#ef4444;">• Under 0.10 = Låg fara</span><br>
-      <em>xT mäter lagets totala målhot baserat på skott, träffsäkerhet och positioner</em>
+      <strong>📊 Ny xT-modell med avancerade features:</strong><br>
+      <span style="color:#22c55e;">• Dangerous Attacks (DA) ersätter bollinnehav</span> | 
+      <span style="color:#f59e0b;">• Exponentiell tidsviktning</span> | 
+      <span style="color:#6b7280;">• Shrinkage mot ligagenomsnitt</span> | 
+      <span style="color:#ef4444;">• Mjukare game-state effekter</span><br>
+      <em>Rate/min: Målfrekvens per minut | Justerings-ratio: Effekt av game-state och kort</em>
     </div>
     
     <table>
       <thead>
-        <tr><th>Lag</th><th>xT-värde</th><th>Momentum</th><th>Målfrekvens/min</th><th>Förv. mål kvar</th></tr>
+        <tr><th>Lag</th><th>Base Rate/min</th><th>Justerad Rate/min</th><th>Justerings-ratio</th><th>Förv. mål kvar</th></tr>
       </thead>
       <tbody>
-        <tr><td><strong>Hemmalag</strong></td><td>${formatxT(rates.xTHome)}</td><td>${rates.momentumHome.toFixed(3)}</td><td>${rates.homeRate.toFixed(4)}</td><td>${lamH.toFixed(2)}</td></tr>
-        <tr><td><strong>Bortalag</strong></td><td>${formatxT(rates.xTAway)}</td><td>${rates.momentumAway.toFixed(3)}</td><td>${rates.awayRate.toFixed(4)}</td><td>${lamA.toFixed(2)}</td></tr>
+        <tr><td><strong>Hemmalag</strong></td><td>${rates.xTHome.toFixed(4)}</td><td>${rates.homeRate.toFixed(4)}</td><td>${rates.momentumHome.toFixed(3)}</td><td>${lamH.toFixed(2)}</td></tr>
+        <tr><td><strong>Bortalag</strong></td><td>${rates.xTAway.toFixed(4)}</td><td>${rates.awayRate.toFixed(4)}</td><td>${rates.momentumAway.toFixed(3)}</td><td>${lamA.toFixed(2)}</td></tr>
       </tbody>
     </table>
     
@@ -570,8 +692,9 @@ function runCalc() {
     </table>
     
     <div style="margin-top:15px; font-size:13px; color:#666;">
-      <strong>xT-modell:</strong> Förväntad fara baserat på skottstatistik, träffsäkerhet och positioner<br>
-      <strong>Momentum:</strong> Tidsbaserad viktning med målhistorik och kortpåverkan<br>
+      <strong>Förbättrad xT-modell:</strong> Dangerous Attacks + Skott på mål + Hörn + Mål med exponentiell tidsviktning<br>
+      <strong>Shrinkage:</strong> Justerar mot ligagenomsnitt (${SHRINK_GAMMA}) för stabilare prediktioner<br>
+      <strong>Game-state:</strong> Mjukare effekter för ledning/underläge + kortpåverkan + tidseffekter<br>
       <strong>MC vs Poisson:</strong> Monte Carlo simulering (${sims} körningar) vs teoretisk Poisson-fördelning
     </div>
   `;
