@@ -34,10 +34,24 @@
     .kpi {display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 12px}
     .legend-box {display:inline-block; width:16px; height:16px; margin-right:6px; border:1px solid #333;}
     @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+    
+    /* Navigation hover effects */
+    .nav a:hover { background: #f0f8ff !important; }
+    .nav a[href="tg.html"]:hover { background: #16a34a !important; }
   </style>
 </head>
 <body>
-  <h1>⚽ Bet365 Live xT & Momentum-kalkylator</h1>
+    <header style="background:#004aad; color:#fff; padding:20px; text-align:center; margin-bottom:20px;">
+      <h1 style="margin:0; font-size:24px;">⚽ Bet365 Live xT & Momentum-kalkylator</h1>
+      <p style="margin:5px 0 0; font-size:14px;">Avancerad analys för live-betting med heatmaps och odds</p>
+      <div class="nav" style="margin-top:15px;">
+        <a href="index.html" style="background:#fff; color:#004aad; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;">🏠 Hem</a>
+        <a href="prematch.html" style="background:#fff; color:#004aad; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;">📊 Pre-Match</a>
+        <a href="live.html" style="background:#fff; color:#004aad; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;">⚡ Live Strategier</a>
+        <a href="livecalc.html" style="background:#fff; color:#004aad; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;">🧮 Live Kalkylator</a>
+        <a href="tg.html" style="background:#22c55e; color:#fff; text-decoration:none; padding:6px 12px; border-radius:6px; font-weight:600; font-size:14px; margin:0 5px;">🎯 xT Heatmap</a>
+      </div>
+    </header>
 
   <div class="grid2">
     <!-- INPUTS -->
@@ -284,6 +298,11 @@ function runCalc(){
       <span style="color:#888800;">≈ 1.0 = Normalt/bra offensivt spel</span><br>
       <span style="color:#cc6600;">1.5–2.0 = Dominerande offensiv</span><br>
       <span style="color:#cc0000;">&gt; 2.0 = Extremt starkt offensivt</span><br>
+      <hr>
+      <strong>Praktisk tolkning för live:</strong><br>
+      <span style="color:#666; font-style:italic;">xT &lt; 0.5 → laget hotar knappt, låg chans att göra mål</span><br>
+      <span style="color:#888800; font-style:italic;">xT ~1.0 → laget "borde" kunna göra mål (bra offensivt tryck)</span><br>
+      <span style="color:#cc0000; font-style:italic;">xT 2.0+ → laget har skapat så mycket hot att mål är mer sannolikt än inte</span><br>
       <small>xT är summan av hot från alla aktioner. Zoner i planen visar var hotet uppstår.</small>
     </div>
   `;
